@@ -9,6 +9,10 @@ const CHAR_DATA = [
       10,
       4
     ],
+    "targetCounts": [
+      20,
+      9
+    ],
     "stats": {
       "力": {
         "lv70": 85,
@@ -106,6 +110,10 @@ const CHAR_DATA = [
     "initialCounts": [
       3,
       4
+    ],
+    "targetCounts": [
+      14,
+      15
     ],
     "stats": {
       "力": {
@@ -205,6 +213,10 @@ const CHAR_DATA = [
       6,
       8
     ],
+    "targetCounts": [
+      14,
+      15
+    ],
     "stats": {
       "力": {
         "lv70": 59,
@@ -301,6 +313,10 @@ const CHAR_DATA = [
     ],
     "initialCounts": [
       8,
+      3
+    ],
+    "targetCounts": [
+      26,
       3
     ],
     "stats": {
@@ -403,6 +419,11 @@ const CHAR_DATA = [
       4,
       4
     ],
+    "targetCounts": [
+      21,
+      4,
+      4
+    ],
     "stats": {
       "力": {
         "lv70": 33,
@@ -501,6 +522,10 @@ const CHAR_DATA = [
       9,
       5
     ],
+    "targetCounts": [
+      18,
+      11
+    ],
     "stats": {
       "力": {
         "lv70": 73,
@@ -596,6 +621,9 @@ const CHAR_DATA = [
     ],
     "initialCounts": [
       12
+    ],
+    "targetCounts": [
+      29
     ],
     "stats": {
       "力": {
@@ -697,6 +725,11 @@ const CHAR_DATA = [
       4,
       7
     ],
+    "targetCounts": [
+      8,
+      7,
+      14
+    ],
     "stats": {
       "力": {
         "lv70": 42,
@@ -792,6 +825,9 @@ const CHAR_DATA = [
     ],
     "initialCounts": [
       11
+    ],
+    "targetCounts": [
+      29
     ],
     "stats": {
       "力": {
@@ -889,6 +925,10 @@ const CHAR_DATA = [
     ],
     "initialCounts": [
       7,
+      8
+    ],
+    "targetCounts": [
+      21,
       8
     ],
     "stats": {

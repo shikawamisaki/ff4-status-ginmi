@@ -171,10 +171,57 @@ main { padding: 0 16px; }
 .step-btn:active { filter: brightness(0.9); }
 .step-btn.minus { background: #45516d; color: var(--text); }
 .step-value {
-  min-width: 1.6em;
+  min-width: 2.6em;
   text-align: center;
   font-size: 20px;
   font-weight: 700;
+}
+.step-value-target {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.pattern-list {
+  padding: 0 16px 14px;
+}
+.pattern-list-title {
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.pattern-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.pattern-list-table td {
+  text-align: center;
+  padding: 4px 2px;
+  color: var(--text);
+}
+.pattern-list-table tr:not(:first-child) td {
+  border-top: 1px solid var(--border);
+}
+.pattern-list-table .pl-stat {
+  text-align: left;
+  color: var(--text-dim);
+  width: 3.2em;
+}
+.pattern-list-table .pl-letter {
+  color: var(--text-dim);
+  font-weight: 700;
+}
+.pattern-list-table .pl-target {
+  background: rgba(76, 175, 130, 0.18);
+  color: var(--good);
+  border-radius: 4px;
+}
+.pattern-list-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 8px 0 0;
 }
 
 details.stat-detail, details.pattern-detect, details.equip-detail { padding: 0 16px 14px; }

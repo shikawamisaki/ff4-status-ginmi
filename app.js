@@ -132,16 +132,34 @@ function render() {
 
     let patternHtml = '';
     char.patterns.forEach((letter, i) => {
+      const targetCount = char.targetCounts[i];
       patternHtml += `
         <div class="pattern-input">
           <label>パターン<span class="letter">${letter}</span></label>
           <div class="stepper">
             <button type="button" class="step-btn minus" data-char="${char.name}" data-idx="${i}">−</button>
-            <span class="step-value" data-char="${char.name}" data-idx="${i}">${counts[i]}</span>
+            <span class="step-value"><span class="step-value-num" data-char="${char.name}" data-idx="${i}">${counts[i]}</span><span class="step-value-target"> / ${targetCount}</span></span>
             <button type="button" class="step-btn plus" data-char="${char.name}" data-idx="${i}">+</button>
           </div>
         </div>`;
     });
+
+    let patternListHtml = '';
+    STAT_ORDER.forEach(sname => {
+      const deltas = char.stats[sname].deltas;
+      patternListHtml += `<tr><td class="pl-stat">${sname}</td>` +
+        PATTERN_LETTERS.map((letter, i) => {
+          const isTarget = char.patterns.includes(letter);
+          const v = deltas[i];
+          const vtxt = v > 0 ? '+' + v : v;
+          return `<td class="pl-val${isTarget ? ' pl-target' : ''}">${vtxt}</td>`;
+        }).join('') + `</tr>`;
+    });
+    const patternHeaderHtml = `<tr><td></td>` +
+      PATTERN_LETTERS.map(letter => {
+        const isTarget = char.patterns.includes(letter);
+        return `<td class="pl-letter${isTarget ? ' pl-target' : ''}">${letter}</td>`;
+      }).join('') + `</tr>`;
 
     let statHtml = '';
     Object.keys(char.stats).forEach(sname => {
@@ -197,6 +215,14 @@ function render() {
         </div>
       </div>
       <div class="pattern-inputs">${patternHtml}</div>
+      <div class="pattern-list">
+        <p class="pattern-list-title">パターン一覧</p>
+        <table class="pattern-list-table">
+          ${patternHeaderHtml}
+          ${patternListHtml}
+        </table>
+        <p class="pattern-list-note">緑=採用中のパターン</p>
+      </div>
       <details class="pattern-detect" data-details-key="${char.name}-detect">
         <summary>パターン判定ツール</summary>
         <p class="detect-help">レベルアップ直後の増加量を選んでください</p>
