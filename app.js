@@ -34,6 +34,15 @@ function equipBonusTotal(equipSlots, statName) {
   return equipSlots.reduce((sum, slot) => sum + (Number(slot.bonus[statName]) || 0), 0);
 }
 
+function findItemMatch(text) {
+  const t = text.trim();
+  if (t.length < 2) return null;
+  if (ITEM_DB[t]) return ITEM_DB[t];
+  const matches = Object.keys(ITEM_DB).filter(k => k.includes(t) || t.includes(k));
+  if (matches.length === 1) return ITEM_DB[matches[0]];
+  return null;
+}
+
 function loadCounts() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
@@ -142,9 +151,9 @@ function render() {
       const total = Math.min(99, base + bonus);
       const done = total >= s.target;
       statHtml += `
-        <div class="stat-row ${done ? 'achieved' : ''}">
+        <div class="stat-row ${done ? 'achieved' : ''}" data-stat-row="${char.name}::${sname}">
           <div class="st-name">${sname}</div>
-          <div class="st-val"><b>${total}</b> / ${s.target} ${bonus ? '<span class="st-bonus">(素' + base + ' +' + bonus + ')</span>' : ''}</div>
+          <div class="st-val"><b class="st-val-num">${total}</b> / ${s.target} ${bonus ? '<span class="st-bonus">(素' + base + ' +' + bonus + ')</span>' : ''}</div>
           <div class="badge">${done ? '○' : ''}</div>
         </div>`;
     });
@@ -152,13 +161,17 @@ function render() {
     let equipHtml = '';
     EQUIP_SLOTS.forEach((slotLabel, si) => {
       const slot = equip[si];
+      const initialMatch = slot.name ? findItemMatch(slot.name) : null;
+      const matchText = initialMatch ? '一致：登録済み装備'
+        : (slot.name && slot.name.trim().length >= 2 ? '未登録（補正値を手入力できます）' : '');
       equipHtml += `
         <div class="equip-slot">
           <div class="equip-slot-head">
             <span class="equip-slot-label">${slotLabel}</span>
-            <input type="text" class="equip-name" placeholder="アイテム名（任意）"
+            <input type="text" class="equip-name" placeholder="アイテム名（例：英雄の盾）"
                    data-char="${char.name}" data-slot="${si}" value="${slot.name || ''}">
           </div>
+          <div class="equip-match${initialMatch ? ' matched' : ''}" data-char="${char.name}" data-slot="${si}">${matchText}</div>
           <div class="equip-bonus-grid">
             ${STAT_ORDER.map(sname => `
               <div class="equip-bonus-item">
@@ -209,7 +222,7 @@ function render() {
         ${equipHtml}
       </details>
       <details class="stat-detail" data-details-key="${char.name}-stat">
-        <summary>ステータス詳細（達成 ${achieved}/5）</summary>
+        <summary>ステータス詳細（達成 <span class="achieved-count" data-achieved-for="${char.name}">${achieved}</span>/5）</summary>
         <div class="stat-table">${statHtml}</div>
       </details>
       <div class="char-foot">
@@ -243,22 +256,82 @@ function render() {
     });
   });
 
+  // recompute + patch just one character's stat display, without a full re-render
+  // (keeps focus on whatever input the user is still typing in)
+  function refreshCharStats(charName) {
+    const all2 = loadCounts();
+    const allEquip2 = loadEquip();
+    const char = CHAR_DATA.find(c => c.name === charName);
+    const counts = getCounts(all2, char);
+    const equip = getEquip(allEquip2, char);
+    let achievedCount = 0;
+    STAT_ORDER.forEach(sname => {
+      const s = char.stats[sname];
+      const base = statValue(char, sname, counts);
+      const bonus = equipBonusTotal(equip, sname);
+      const total = Math.min(99, base + bonus);
+      const done = total >= s.target;
+      if (done) achievedCount++;
+      const row = listEl.querySelector(`[data-stat-row="${CSS.escape(charName + '::' + sname)}"]`);
+      if (!row) return;
+      row.classList.toggle('achieved', done);
+      row.querySelector('.st-val-num').textContent = total;
+      let bonusEl = row.querySelector('.st-bonus');
+      if (bonus) {
+        const txt = `(素${base} +${bonus})`;
+        if (bonusEl) {
+          bonusEl.textContent = txt;
+        } else {
+          bonusEl = document.createElement('span');
+          bonusEl.className = 'st-bonus';
+          bonusEl.textContent = txt;
+          row.querySelector('.st-val').appendChild(bonusEl);
+        }
+      } else if (bonusEl) {
+        bonusEl.remove();
+      }
+      row.querySelector('.badge').textContent = done ? '○' : '';
+    });
+    const achievedEl = listEl.querySelector(`[data-achieved-for="${CSS.escape(charName)}"]`);
+    if (achievedEl) achievedEl.textContent = achievedCount;
+  }
+
   // wire equipment inputs
   listEl.querySelectorAll('.equip-name').forEach(inp => {
-    inp.addEventListener('change', () => {
+    inp.addEventListener('input', () => {
       const allEquip2 = loadEquip();
       const charName = inp.dataset.char;
       const slotIdx = Number(inp.dataset.slot);
       const char = CHAR_DATA.find(c => c.name === charName);
       const equip = getEquip(allEquip2, char);
       equip[slotIdx].name = inp.value;
+
+      const matched = findItemMatch(inp.value);
+      const matchEl = listEl.querySelector(`.equip-match[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"]`);
+      if (matched) {
+        equip[slotIdx].bonus = { ...matched };
+        STAT_ORDER.forEach(sname => {
+          const bonusInp = listEl.querySelector(
+            `.equip-bonus[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"][data-stat="${sname}"]`);
+          if (bonusInp) bonusInp.value = matched[sname];
+        });
+        if (matchEl) {
+          matchEl.textContent = '一致：登録済み装備';
+          matchEl.classList.add('matched');
+        }
+      } else if (matchEl) {
+        matchEl.textContent = inp.value.trim().length >= 2 ? '未登録（補正値を手入力できます）' : '';
+        matchEl.classList.remove('matched');
+      }
+
       allEquip2[charName] = equip;
       saveEquip(allEquip2);
+      refreshCharStats(charName);
     });
   });
 
   listEl.querySelectorAll('.equip-bonus').forEach(inp => {
-    inp.addEventListener('change', () => {
+    inp.addEventListener('input', () => {
       const allEquip2 = loadEquip();
       const charName = inp.dataset.char;
       const slotIdx = Number(inp.dataset.slot);
@@ -270,7 +343,7 @@ function render() {
       equip[slotIdx].bonus[stat] = v;
       allEquip2[charName] = equip;
       saveEquip(allEquip2);
-      render();
+      refreshCharStats(charName);
     });
   });
 
