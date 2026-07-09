@@ -274,10 +274,6 @@ function render() {
         <summary>ステータス詳細（達成 <span class="achieved-count" data-achieved-for="${char.name}">${achieved}</span>/5）</summary>
         <div class="stat-table">${statHtml}</div>
       </details>
-      <div class="char-foot">
-        <span></span>
-        <button class="reset-char-btn" data-char="${char.name}">この初期値に戻す</button>
-      </div>
     `;
     listEl.appendChild(card);
   });
@@ -424,15 +420,6 @@ function render() {
       allEquip2[charName] = equip;
       saveEquip(allEquip2);
       refreshCharStats(charName);
-    });
-  });
-
-  listEl.querySelectorAll('.reset-char-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const all2 = loadCounts();
-      delete all2[btn.dataset.char];
-      saveCounts(all2);
-      render();
     });
   });
 

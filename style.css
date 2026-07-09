@@ -420,23 +420,6 @@ details.equip-detail[open] summary::after { transform: rotate(180deg); }
   margin: 0;
 }
 
-.char-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px 14px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-.char-foot button {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
 .app-footer {
   text-align: center;
   padding: 20px 16px 0;
