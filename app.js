@@ -34,13 +34,31 @@ function equipBonusTotal(equipSlots, statName) {
   return equipSlots.reduce((sum, slot) => sum + (Number(slot.bonus[statName]) || 0), 0);
 }
 
+function toHiragana(text) {
+  return text.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
 function findItemMatch(text) {
-  const t = text.trim();
+  const t = toHiragana(text.trim());
   if (t.length < 2) return null;
-  if (ITEM_DB[t]) return ITEM_DB[t];
-  const matches = Object.keys(ITEM_DB).filter(k => k.includes(t) || t.includes(k));
+  let exact = null;
+  for (const key of Object.keys(ITEM_DB)) {
+    if (toHiragana(key) === t) { exact = key; break; }
+  }
+  if (exact) return ITEM_DB[exact];
+  const matches = Object.keys(ITEM_DB).filter(k => {
+    const nk = toHiragana(k);
+    return nk.includes(t) || t.includes(nk);
+  });
   if (matches.length === 1) return ITEM_DB[matches[0]];
   return null;
+}
+
+function describeBonus(bonus) {
+  const parts = STAT_ORDER
+    .filter(s => bonus[s])
+    .map(s => `${s}${bonus[s] > 0 ? '+' : ''}${bonus[s]}`);
+  return parts.length ? parts.join(' ') : '補正なし';
 }
 
 function loadCounts() {
@@ -180,8 +198,10 @@ function render() {
     EQUIP_SLOTS.forEach((slotLabel, si) => {
       const slot = equip[si];
       const initialMatch = slot.name ? findItemMatch(slot.name) : null;
-      const matchText = initialMatch ? '一致：登録済み装備'
-        : (slot.name && slot.name.trim().length >= 2 ? '未登録（補正値を手入力できます）' : '');
+      let matchText = '';
+      if (slot.name && slot.name.trim()) {
+        matchText = initialMatch ? `⭕️（${describeBonus(initialMatch)}）` : '❌';
+      }
       equipHtml += `
         <div class="equip-slot">
           <div class="equip-slot-head">
@@ -189,7 +209,10 @@ function render() {
             <input type="text" class="equip-name" placeholder="アイテム名（例：英雄の盾）"
                    data-char="${char.name}" data-slot="${si}" value="${slot.name || ''}">
           </div>
-          <div class="equip-match${initialMatch ? ' matched' : ''}" data-char="${char.name}" data-slot="${si}">${matchText}</div>
+          <div class="equip-match-row">
+            <div class="equip-match${initialMatch ? ' matched' : ''}" data-char="${char.name}" data-slot="${si}">${matchText}</div>
+            <button type="button" class="equip-register-btn" data-char="${char.name}" data-slot="${si}">登録</button>
+          </div>
           <div class="equip-bonus-grid">
             ${STAT_ORDER.map(sname => `
               <div class="equip-bonus-item">
@@ -322,33 +345,64 @@ function render() {
     if (achievedEl) achievedEl.textContent = achievedCount;
   }
 
-  // wire equipment inputs
+  // wire equipment name field: live preview only (⭕️/❌), no data change until 登録 is pressed
   listEl.querySelectorAll('.equip-name').forEach(inp => {
     inp.addEventListener('input', () => {
-      const allEquip2 = loadEquip();
       const charName = inp.dataset.char;
       const slotIdx = Number(inp.dataset.slot);
-      const char = CHAR_DATA.find(c => c.name === charName);
-      const equip = getEquip(allEquip2, char);
-      equip[slotIdx].name = inp.value;
-
-      const matched = findItemMatch(inp.value);
       const matchEl = listEl.querySelector(`.equip-match[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"]`);
+      if (!matchEl) return;
+      const val = inp.value.trim();
+      if (!val) {
+        matchEl.textContent = '';
+        matchEl.classList.remove('matched');
+        return;
+      }
+      const matched = findItemMatch(inp.value);
       if (matched) {
-        equip[slotIdx].bonus = { ...matched };
-        STAT_ORDER.forEach(sname => {
-          const bonusInp = listEl.querySelector(
-            `.equip-bonus[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"][data-stat="${sname}"]`);
-          if (bonusInp) bonusInp.value = matched[sname];
-        });
-        if (matchEl) {
-          matchEl.textContent = '一致：登録済み装備';
-          matchEl.classList.add('matched');
-        }
-      } else if (matchEl) {
-        matchEl.textContent = inp.value.trim().length >= 2 ? '未登録（補正値を手入力できます）' : '';
+        matchEl.textContent = `⭕️（${describeBonus(matched)}）`;
+        matchEl.classList.add('matched');
+      } else {
+        matchEl.textContent = '❌';
         matchEl.classList.remove('matched');
       }
+    });
+  });
+
+  // 登録 button: commit the name field's match (or reset to 0 if blank) into the actual bonus data
+  listEl.querySelectorAll('.equip-register-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const charName = btn.dataset.char;
+      const slotIdx = Number(btn.dataset.slot);
+      const char = CHAR_DATA.find(c => c.name === charName);
+      const allEquip2 = loadEquip();
+      const equip = getEquip(allEquip2, char);
+      const nameInp = listEl.querySelector(`.equip-name[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"]`);
+      const matchEl = listEl.querySelector(`.equip-match[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"]`);
+      const val = nameInp.value.trim();
+
+      equip[slotIdx].name = nameInp.value;
+      let newBonus = { 力: 0, 素早さ: 0, 体力: 0, 知性: 0, 精神: 0 };
+      if (!val) {
+        matchEl.textContent = '';
+        matchEl.classList.remove('matched');
+      } else {
+        const matched = findItemMatch(nameInp.value);
+        if (matched) {
+          newBonus = { ...matched };
+          matchEl.textContent = `⭕️（${describeBonus(matched)}）`;
+          matchEl.classList.add('matched');
+        } else {
+          matchEl.textContent = '❌';
+          matchEl.classList.remove('matched');
+        }
+      }
+      equip[slotIdx].bonus = newBonus;
+      STAT_ORDER.forEach(sname => {
+        const bonusInp = listEl.querySelector(
+          `.equip-bonus[data-char="${CSS.escape(charName)}"][data-slot="${slotIdx}"][data-stat="${sname}"]`);
+        if (bonusInp) bonusInp.value = newBonus[sname];
+      });
 
       allEquip2[charName] = equip;
       saveEquip(allEquip2);
