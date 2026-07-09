@@ -1,8 +1,38 @@
 const STORAGE_KEY = 'ff4_ginmi_counts_v1';
+const EQUIP_STORAGE_KEY = 'ff4_ginmi_equip_v1';
 const MAX_LEVEL = 99;
 const BASE_LEVEL = 70;
 const STAT_ORDER = ['力', '素早さ', '体力', '知性', '精神'];
 const PATTERN_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const EQUIP_SLOTS = ['右手', '左手', '頭', '体', '腕'];
+
+function emptyEquipSlots() {
+  return EQUIP_SLOTS.map(() => ({
+    name: '',
+    bonus: { 力: 0, 素早さ: 0, 体力: 0, 知性: 0, 精神: 0 },
+  }));
+}
+
+function loadEquip() {
+  try {
+    return JSON.parse(localStorage.getItem(EQUIP_STORAGE_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveEquip(all) {
+  localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(all));
+}
+
+function getEquip(all, char) {
+  if (all[char.name]) return all[char.name];
+  return emptyEquipSlots();
+}
+
+function equipBonusTotal(equipSlots, statName) {
+  return equipSlots.reduce((sum, slot) => sum + (Number(slot.bonus[statName]) || 0), 0);
+}
 
 function loadCounts() {
   try {
@@ -48,17 +78,28 @@ function detectPattern(char, selections) {
 
 function render() {
   const all = loadCounts();
+  const allEquip = loadEquip();
   const listEl = document.getElementById('char-list');
   const summaryEl = document.getElementById('summary');
+
+  const openState = {};
+  listEl.querySelectorAll('details[data-details-key]').forEach(d => {
+    openState[d.dataset.detailsKey] = d.open;
+  });
+
   listEl.innerHTML = '';
 
   const rows = CHAR_DATA.map(char => {
     const counts = getCounts(all, char);
+    const equip = getEquip(allEquip, char);
     const lv = currentLevel(counts);
     const remain = MAX_LEVEL - lv;
     const pct = Math.round(((lv - BASE_LEVEL) / (MAX_LEVEL - BASE_LEVEL)) * 100);
-    const achieved = Object.keys(char.stats).filter(s => statValue(char, s, counts) >= char.stats[s].target).length;
-    return { char, counts, lv, remain, pct, achieved };
+    const achieved = Object.keys(char.stats).filter(s => {
+      const total = statValue(char, s, counts) + equipBonusTotal(equip, s);
+      return total >= char.stats[s].target;
+    }).length;
+    return { char, counts, equip, lv, remain, pct, achieved };
   });
 
   // summary
@@ -76,7 +117,7 @@ function render() {
 
   // cards in original order
   rows.forEach(r => {
-    const { char, counts, lv, remain, pct, achieved } = r;
+    const { char, counts, equip, lv, remain, pct, achieved } = r;
     const card = document.createElement('div');
     card.className = 'char-card';
 
@@ -96,14 +137,37 @@ function render() {
     let statHtml = '';
     Object.keys(char.stats).forEach(sname => {
       const s = char.stats[sname];
-      const val = statValue(char, sname, counts);
-      const done = val >= s.target;
+      const base = statValue(char, sname, counts);
+      const bonus = equipBonusTotal(equip, sname);
+      const total = Math.min(99, base + bonus);
+      const done = total >= s.target;
       statHtml += `
         <div class="stat-row ${done ? 'achieved' : ''}">
           <div class="st-name">${sname}</div>
-          <div class="st-val"><b>${val}</b> / ${s.target}</div>
+          <div class="st-val"><b>${total}</b> / ${s.target} ${bonus ? '<span class="st-bonus">(素' + base + ' +' + bonus + ')</span>' : ''}</div>
           <div class="badge">${done ? '○' : ''}</div>
-          <div class="st-equip">${s.equip || ''}</div>
+        </div>`;
+    });
+
+    let equipHtml = '';
+    EQUIP_SLOTS.forEach((slotLabel, si) => {
+      const slot = equip[si];
+      equipHtml += `
+        <div class="equip-slot">
+          <div class="equip-slot-head">
+            <span class="equip-slot-label">${slotLabel}</span>
+            <input type="text" class="equip-name" placeholder="アイテム名（任意）"
+                   data-char="${char.name}" data-slot="${si}" value="${slot.name || ''}">
+          </div>
+          <div class="equip-bonus-grid">
+            ${STAT_ORDER.map(sname => `
+              <div class="equip-bonus-item">
+                <label>${sname}</label>
+                <input type="number" inputmode="numeric" class="equip-bonus"
+                       data-char="${char.name}" data-slot="${si}" data-stat="${sname}"
+                       value="${slot.bonus[sname] || 0}">
+              </div>`).join('')}
+          </div>
         </div>`;
     });
 
@@ -120,7 +184,7 @@ function render() {
         </div>
       </div>
       <div class="pattern-inputs">${patternHtml}</div>
-      <details class="pattern-detect">
+      <details class="pattern-detect" data-details-key="${char.name}-detect">
         <summary>パターン判定ツール</summary>
         <p class="detect-help">レベルアップ直後の増加量を選んでください</p>
         <div class="detect-grid">
@@ -139,7 +203,12 @@ function render() {
         </div>
         <div class="detect-result" data-char-result="${char.name}"></div>
       </details>
-      <details class="stat-detail">
+      <details class="equip-detail" data-details-key="${char.name}-equip">
+        <summary>装備補正</summary>
+        <p class="detect-help">今の装備を右手・左手・頭・体・腕の順で入力してください</p>
+        ${equipHtml}
+      </details>
+      <details class="stat-detail" data-details-key="${char.name}-stat">
         <summary>ステータス詳細（達成 ${achieved}/5）</summary>
         <div class="stat-table">${statHtml}</div>
       </details>
@@ -149,6 +218,10 @@ function render() {
       </div>
     `;
     listEl.appendChild(card);
+  });
+
+  listEl.querySelectorAll('details[data-details-key]').forEach(d => {
+    if (openState[d.dataset.detailsKey]) d.open = true;
   });
 
   // wire pattern count steppers
@@ -166,6 +239,37 @@ function render() {
       counts[idx] = v;
       all2[charName] = counts;
       saveCounts(all2);
+      render();
+    });
+  });
+
+  // wire equipment inputs
+  listEl.querySelectorAll('.equip-name').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const allEquip2 = loadEquip();
+      const charName = inp.dataset.char;
+      const slotIdx = Number(inp.dataset.slot);
+      const char = CHAR_DATA.find(c => c.name === charName);
+      const equip = getEquip(allEquip2, char);
+      equip[slotIdx].name = inp.value;
+      allEquip2[charName] = equip;
+      saveEquip(allEquip2);
+    });
+  });
+
+  listEl.querySelectorAll('.equip-bonus').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const allEquip2 = loadEquip();
+      const charName = inp.dataset.char;
+      const slotIdx = Number(inp.dataset.slot);
+      const stat = inp.dataset.stat;
+      const char = CHAR_DATA.find(c => c.name === charName);
+      const equip = getEquip(allEquip2, char);
+      let v = parseInt(inp.value, 10);
+      if (isNaN(v)) v = 0;
+      equip[slotIdx].bonus[stat] = v;
+      allEquip2[charName] = equip;
+      saveEquip(allEquip2);
       render();
     });
   });

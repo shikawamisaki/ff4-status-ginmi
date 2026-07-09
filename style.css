@@ -177,8 +177,8 @@ main { padding: 0 16px; }
   font-weight: 700;
 }
 
-details.stat-detail, details.pattern-detect { padding: 0 16px 14px; }
-details.stat-detail summary, details.pattern-detect summary {
+details.stat-detail, details.pattern-detect, details.equip-detail { padding: 0 16px 14px; }
+details.stat-detail summary, details.pattern-detect summary, details.equip-detail summary {
   color: var(--accent);
   font-size: 13px;
   cursor: pointer;
@@ -188,14 +188,17 @@ details.stat-detail summary, details.pattern-detect summary {
   gap: 4px;
 }
 details.stat-detail summary::-webkit-details-marker,
-details.pattern-detect summary::-webkit-details-marker { display: none; }
+details.pattern-detect summary::-webkit-details-marker,
+details.equip-detail summary::-webkit-details-marker { display: none; }
 details.stat-detail summary::after,
-details.pattern-detect summary::after {
+details.pattern-detect summary::after,
+details.equip-detail summary::after {
   content: "▾";
   transition: transform 0.15s;
 }
 details.stat-detail[open] summary::after,
-details.pattern-detect[open] summary::after { transform: rotate(180deg); }
+details.pattern-detect[open] summary::after,
+details.equip-detail[open] summary::after { transform: rotate(180deg); }
 
 .detect-help {
   font-size: 12px;
@@ -275,13 +278,73 @@ details.pattern-detect[open] summary::after { transform: rotate(180deg); }
 .stat-row .st-name { width: 3.2em; color: var(--text-dim); flex-shrink: 0; }
 .stat-row .st-val { flex: 1; text-align: right; font-variant-numeric: tabular-nums; }
 .stat-row .st-val b { font-size: 14px; }
-.stat-row .st-equip { width: 5.5em; text-align: right; color: var(--text-dim); font-size: 11px; flex-shrink: 0; }
+.stat-row .st-val .st-bonus { color: var(--good); font-size: 11px; margin-left: 4px; }
 .stat-row.achieved .st-val b { color: var(--good); }
 .stat-row .badge {
   width: 1.4em;
   text-align: center;
   color: var(--good);
   flex-shrink: 0;
+}
+
+.equip-slot {
+  background: var(--card-alt);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 8px;
+}
+.equip-slot-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.equip-slot-label {
+  background: var(--accent);
+  color: #10141d;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 6px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+.equip-name {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  padding: 2px 0;
+  min-width: 0;
+}
+.equip-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.equip-bonus-item { text-align: center; }
+.equip-bonus-item label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.equip-bonus-item input {
+  width: 100%;
+  background: var(--card);
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+  padding: 4px 0;
+  -moz-appearance: textfield;
+}
+.equip-bonus-item input::-webkit-outer-spin-button,
+.equip-bonus-item input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .char-foot {
