@@ -134,7 +134,7 @@ function render() {
   rows.forEach(r => {
     summaryHtml += `
       <div class="summary-row">
-        <div class="s-name">${r.char.name}</div>
+        <button type="button" class="s-name" data-jump-to="${r.char.name}">${r.char.name}</button>
         <div class="s-bar"><div class="s-bar-fill" style="width:${r.pct}%"></div></div>
         <div class="s-pct">${r.pct}%</div>
         <div class="s-tries">${r.remain > 0 ? '残り' + r.remain : '完了'}</div>
@@ -142,11 +142,19 @@ function render() {
   });
   summaryEl.innerHTML = summaryHtml;
 
+  summaryEl.querySelectorAll('[data-jump-to]').forEach(el => {
+    el.addEventListener('click', () => {
+      const card = document.getElementById(`char-card-${el.dataset.jumpTo}`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
   // cards in original order
   rows.forEach(r => {
     const { char, counts, equip, lv, remain, pct, achieved } = r;
     const card = document.createElement('div');
     card.className = 'char-card';
+    card.id = `char-card-${char.name}`;
 
     let patternHtml = '';
     char.patterns.forEach((letter, i) => {
@@ -484,6 +492,13 @@ document.getElementById('reset-all-btn').addEventListener('click', () => {
     localStorage.removeItem(STORAGE_KEY);
     render();
   }
+});
+
+document.getElementById('feedback-send-btn').addEventListener('click', () => {
+  const text = document.getElementById('feedback-text').value;
+  const subject = encodeURIComponent('FF4ステータス吟味アプリ フィードバック');
+  const body = encodeURIComponent(text);
+  window.location.href = `mailto:shikawa.misaki@gmail.com?subject=${subject}&body=${body}`;
 });
 
 render();
