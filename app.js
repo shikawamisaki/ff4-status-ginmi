@@ -1,6 +1,8 @@
 const STORAGE_KEY = 'ff4_ginmi_counts_v1';
 const MAX_LEVEL = 99;
 const BASE_LEVEL = 70;
+const STAT_ORDER = ['力', '素早さ', '体力', '知性', '精神'];
+const PATTERN_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 function loadCounts() {
   try {
@@ -32,6 +34,16 @@ function statValue(char, statName, counts) {
     v += (Number(counts[i]) || 0) * s.deltas[idx];
   });
   return v;
+}
+
+function detectPattern(char, selections) {
+  // selections: array of 5 numbers in STAT_ORDER order
+  const matches = [];
+  for (let i = 0; i < 8; i++) {
+    const ok = STAT_ORDER.every((sname, si) => char.stats[sname].deltas[i] === selections[si]);
+    if (ok) matches.push(PATTERN_LETTERS[i]);
+  }
+  return matches; // usually 0 or 1 entries; could be >1 if a character has duplicate rows
 }
 
 function render() {
@@ -108,6 +120,25 @@ function render() {
         </div>
       </div>
       <div class="pattern-inputs">${patternHtml}</div>
+      <details class="pattern-detect">
+        <summary>パターン判定ツール</summary>
+        <p class="detect-help">レベルアップ直後の増加量を選んでください</p>
+        <div class="detect-grid">
+          ${STAT_ORDER.map(sname => `
+            <div class="detect-item">
+              <label>${sname}</label>
+              <select class="detect-select" data-char="${char.name}" data-stat="${sname}">
+                <option value="">-</option>
+                <option value="-1">-1</option>
+                <option value="0">0</option>
+                <option value="1">+1</option>
+                <option value="2">+2</option>
+                <option value="3">+3</option>
+              </select>
+            </div>`).join('')}
+        </div>
+        <div class="detect-result" data-char-result="${char.name}"></div>
+      </details>
       <details class="stat-detail">
         <summary>ステータス詳細（達成 ${achieved}/5）</summary>
         <div class="stat-table">${statHtml}</div>
@@ -145,6 +176,61 @@ function render() {
       saveCounts(all2);
       render();
     });
+  });
+
+  // pattern detection tool
+  function updateDetectResult(charName) {
+    const char = CHAR_DATA.find(c => c.name === charName);
+    const selects = listEl.querySelectorAll(`.detect-select[data-char="${CSS.escape(charName)}"]`);
+    const resultEl = listEl.querySelector(`.detect-result[data-char-result="${CSS.escape(charName)}"]`);
+    const values = [];
+    let allFilled = true;
+    selects.forEach(sel => {
+      if (sel.value === '') { allFilled = false; return; }
+      values[STAT_ORDER.indexOf(sel.dataset.stat)] = Number(sel.value);
+    });
+    if (!allFilled) {
+      resultEl.innerHTML = '';
+      return;
+    }
+    const matches = detectPattern(char, values);
+    if (matches.length === 0) {
+      resultEl.innerHTML = `<div class="detect-none">一致するパターンが見つかりません（入力を確認してください）</div>`;
+    } else {
+      const letter = matches[0];
+      const isTarget = char.patterns.includes(letter);
+      if (isTarget) {
+        const idx = char.patterns.indexOf(letter);
+        resultEl.innerHTML = `
+          <div class="detect-hit target">
+            <span class="letter-big">${letter}</span> パターン ・ 採用対象です
+            <button class="adopt-btn" data-char="${charName}" data-idx="${idx}">回数+1して採用</button>
+          </div>`;
+      } else {
+        resultEl.innerHTML = `
+          <div class="detect-hit reject">
+            <span class="letter-big">${letter}</span> パターン ・ 対象外 → リセットしてやり直してください
+          </div>`;
+      }
+    }
+  }
+
+  listEl.querySelectorAll('.detect-select').forEach(sel => {
+    sel.addEventListener('change', () => updateDetectResult(sel.dataset.char));
+  });
+
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.adopt-btn');
+    if (!btn) return;
+    const all2 = loadCounts();
+    const charName = btn.dataset.char;
+    const idx = Number(btn.dataset.idx);
+    const char = CHAR_DATA.find(c => c.name === charName);
+    const counts = getCounts(all2, char);
+    counts[idx] = (Number(counts[idx]) || 0) + 1;
+    all2[charName] = counts;
+    saveCounts(all2);
+    render();
   });
 }
 
