@@ -57,29 +57,26 @@ function render() {
     const lv = currentLevel(counts);
     const remain = MAX_LEVEL - lv;
     const pct = Math.round(((lv - BASE_LEVEL) / (MAX_LEVEL - BASE_LEVEL)) * 100);
-    const targetCount = char.patterns.length;
-    const expectedTries = remain > 0 ? Math.round((remain * 8) / targetCount) : 0;
     const achieved = Object.keys(char.stats).filter(s => statValue(char, s, counts) >= char.stats[s].target).length;
-    return { char, counts, lv, remain, pct, expectedTries, achieved };
+    return { char, counts, lv, remain, pct, achieved };
   });
 
   // summary
-  const sorted = [...rows].sort((a, b) => a.expectedTries - b.expectedTries);
-  let summaryHtml = '<h2>優先度（試行回数が少ない順）</h2>';
-  sorted.forEach(r => {
+  let summaryHtml = '<h2>進捗一覧</h2>';
+  rows.forEach(r => {
     summaryHtml += `
       <div class="summary-row">
         <div class="s-name">${r.char.name}</div>
         <div class="s-bar"><div class="s-bar-fill" style="width:${r.pct}%"></div></div>
         <div class="s-pct">${r.pct}%</div>
-        <div class="s-tries">${r.remain > 0 ? '残り' + r.expectedTries + '回' : '完了'}</div>
+        <div class="s-tries">${r.remain > 0 ? '残り' + r.remain : '完了'}</div>
       </div>`;
   });
   summaryEl.innerHTML = summaryHtml;
 
   // cards in original order
   rows.forEach(r => {
-    const { char, counts, lv, remain, pct, expectedTries, achieved } = r;
+    const { char, counts, lv, remain, pct, achieved } = r;
     const card = document.createElement('div');
     card.className = 'char-card';
 
@@ -88,8 +85,11 @@ function render() {
       patternHtml += `
         <div class="pattern-input">
           <label>パターン<span class="letter">${letter}</span></label>
-          <input type="number" inputmode="numeric" min="0" max="29"
-                 data-char="${char.name}" data-idx="${i}" value="${counts[i]}">
+          <div class="stepper">
+            <button type="button" class="step-btn minus" data-char="${char.name}" data-idx="${i}">−</button>
+            <span class="step-value" data-char="${char.name}" data-idx="${i}">${counts[i]}</span>
+            <button type="button" class="step-btn plus" data-char="${char.name}" data-idx="${i}">+</button>
+          </div>
         </div>`;
     });
 
@@ -116,7 +116,7 @@ function render() {
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="progress-meta">
           <span>${pct}%</span>
-          <span>${remain > 0 ? '期待残り試行 ' + expectedTries + '回' : '達成済み'}</span>
+          <span>${remain > 0 ? '残り' + remain + 'Lv' : '達成済み'}</span>
         </div>
       </div>
       <div class="pattern-inputs">${patternHtml}</div>
@@ -151,16 +151,17 @@ function render() {
     listEl.appendChild(card);
   });
 
-  // wire inputs
-  listEl.querySelectorAll('input[type=number]').forEach(inp => {
-    inp.addEventListener('input', () => {
+  // wire pattern count steppers
+  listEl.querySelectorAll('.step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
       const all2 = loadCounts();
-      const charName = inp.dataset.char;
-      const idx = Number(inp.dataset.idx);
+      const charName = btn.dataset.char;
+      const idx = Number(btn.dataset.idx);
       const char = CHAR_DATA.find(c => c.name === charName);
       const counts = getCounts(all2, char);
-      let v = parseInt(inp.value, 10);
-      if (isNaN(v) || v < 0) v = 0;
+      const delta = btn.classList.contains('plus') ? 1 : -1;
+      let v = (Number(counts[idx]) || 0) + delta;
+      if (v < 0) v = 0;
       if (v > 29) v = 29;
       counts[idx] = v;
       all2[charName] = counts;
